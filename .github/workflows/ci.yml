@@ -1,0 +1,24 @@
+name: "Setup Basic CI Pipepine"
+
+on:
+    push:
+        branches:
+            - main
+    
+    pull_request:
+        branches:
+            - main
+
+jobs:
+    build-and-test:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: "Setup NodeJs"
+              uses: actions/setup-node@v4
+              with:
+                node-version: '21'
+
+            - name: "Check Node Version"
+              run: node --version
+

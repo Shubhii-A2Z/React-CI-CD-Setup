@@ -22,3 +22,9 @@ jobs:
             - name: "Check Node Version"
               run: node --version
 
+            - name: "Cloning The Repo"
+              uses: actions/checkout@v6
+
+            - name: "Run Lint"
+              run: npm run lint
+

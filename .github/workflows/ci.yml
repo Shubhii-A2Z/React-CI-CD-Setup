@@ -1,4 +1,4 @@
-name: "Setup Basic CI Pipepine"
+name: "Setup Basic CI Pipeline"
 
 on:
     push:

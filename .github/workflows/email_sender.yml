@@ -42,4 +42,4 @@ jobs:
           REPO_NAME: ${{ github.repository }}
           WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
-          python .github/scripts/send_email.py
+          python .github/scripts/script.py

@@ -1,39 +1,84 @@
+# ==============================================================================
+# CONTINUOUS DEPLOYMENT (CD) PIPELINE
+# ==============================================================================
+# Purpose: Automatically deploy your application to Vercel Production.
+# Security: Runs ONLY when the CI pipeline finishes successfully on the 'main' branch
+#           (e.g., after a Pull Request is merged into main).
+# ==============================================================================
+
 name: "CD Pipeline"
 
+# ------------------------------------------------------------------------------
+# TRIGGER CONDITIONS
+# Instead of listening to git pushes directly, this workflow listens for the 
+# completion of your CI workflow.
+# ------------------------------------------------------------------------------
 on:
-    workflow_run:
-        workflows: ["Setup Basic CI Pipeline"] # Must EXACTLY match the 'name:' of your CI workflow
-        types:
-            - completed
-        branches:
-            - main
+  workflow_run:
+    # 1. The exact name of your CI workflow (must match the 'name:' field in ci.yml)
+    workflows: ["Setup Basic CI Pipeline"] 
+    
+    # 2. Wait until the CI workflow finishes execution completely
+    types:
+      - completed
+      
+    # 3. Only run if the CI pipeline ran on the 'main' branch
+    branches:
+      - main
 
 jobs:
-    deploy:
-        # Conditions: CI must pass AND event must be an actual push/merge to main (not a PR)
-        if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+  deploy:
+    # --------------------------------------------------------------------------
+    # SAFETY CHECKS (Prevents deploying broken or preview code)
+    # - conclusion == 'success' : Only run if all CI tests/builds PASSED.
+    # - event == 'push'          : Only run for actual merges/pushes to main,
+    #                              NOT when someone opens a Pull Request.
+    # --------------------------------------------------------------------------
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
 
-        runs-on: ubuntu-latest
+    # The virtual operating system assigned by GitHub to run these steps
+    runs-on: ubuntu-latest
 
-        environment: Production
+    # Connects this job to GitHub's 'Production' environment rules & secrets
+    environment: Production
 
-        steps: 
-            - name: "Setup nodejs"
-              uses: actions/setup-node@v7
-              with:
-                node-version: 24
+    steps: 
+      # ------------------------------------------------------------------------
+      # STEP 1: Prepare Node.js Runtime
+      # Installs Node.js on the GitHub virtual machine so we can use 'npm'.
+      # ------------------------------------------------------------------------
+      - name: "Setup nodejs"
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22 # Recommended LTS version for Vercel tooling
 
-            - name: "Setup Vercel CLI"
-              run: npm i -g vercel
+      # ------------------------------------------------------------------------
+      # STEP 2: Install Vercel Command-Line Tool
+      # Installs the official Vercel CLI globally on the runner machine.
+      # ------------------------------------------------------------------------
+      - name: "Setup Vercel CLI"
+        run: npm i -g vercel
 
-            - name: "Download build files"
-              uses: actions/download-artifact@v4
-              with:
-                name: build
-                run-id: ${{github.event.workflow_run.id}}
-                github-token: ${{github.token}}
+      # ------------------------------------------------------------------------
+      # STEP 3: Download Pre-Built Files from CI
+      # Instead of re-building the project, this downloads the 'build' folder 
+      # that was created and uploaded during the CI workflow.
+      # ------------------------------------------------------------------------
+      - name: "Download build files"
+        uses: actions/download-artifact@v4
+        with:
+          name: build                            # Must match the artifact name used in your CI script
+          run-id: ${{ github.event.workflow_run.id }} # Fetches artifact from the specific CI run that just passed
+          github-token: ${{ github.token }}          # Authenticates permission to fetch artifacts across workflows
 
-            - name: "Deploy to Vercel"
-              run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --confirm --name=cicdproject
-
-
+      # ------------------------------------------------------------------------
+      # STEP 4: Deploy to Vercel Production
+      # Sends the downloaded build files directly to your live Vercel website.
+      # Flags explained:
+      #   --prod    : Pushes directly to Live Production (not a Preview URL)
+      #   --token   : Uses your secret Vercel authentication token
+      #   --confirm : Automatically skips any "Are you sure?" prompts in the terminal
+      #   --name    : Sets the project name inside your Vercel Dashboard
+      # ------------------------------------------------------------------------
+      - name: "Deploy to Vercel"
+        run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --confirm --name=cicdproject

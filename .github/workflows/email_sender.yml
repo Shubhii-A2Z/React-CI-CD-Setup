@@ -1,0 +1,45 @@
+# ==============================================================================
+# EMAIL NOTIFICATION PIPELINE
+# ==============================================================================
+# Purpose: Listens for failed workflows and sends an HTML alert email via Python.
+# ==============================================================================
+
+name: "Email Failure Alert"
+
+on:
+  workflow_run:
+    # Exact names of all workflows we want to monitor for failures
+    workflows: ["Setup Basic CI Pipeline"]
+    types:
+      - completed
+
+jobs:
+  send-failure-email:
+    # Runs ONLY if the monitored workflow's final result was a FAILURE
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout code to access your Python script file
+      - name: "Checkout Repository"
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Python environment
+      - name: "Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # Step 3: Run the Python email script with dynamic environment variables
+      - name: "Send Email Notification"
+        env:
+          # Secrets configured in GitHub Repository Settings -> Secrets and variables -> Actions
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+          RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
+
+          # Dynamic Context fetched directly from the failed workflow run
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          REPO_NAME: ${{ github.repository }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          python .github/scripts/send_email.py
